@@ -1,0 +1,4 @@
+Materia Elegida: Algebra Lineal
+Pregunta de Regresion
+Estimar la firma de la materia por año y comparar
+Estimar si la persona pasara o no en base a sus parciales
