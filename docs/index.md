@@ -1,4 +1,3 @@
-cat << 'EOF' > docs/index.md
 ---
 layout: default
 title: Descubrimiento de Sistemas Dinámicos Continuos (Epidemiología SIR)
@@ -131,4 +130,3 @@ Evaluar únicamente el error en un paso de derivada no garantiza estabilidad tem
 ### Propuestas de Mejora y Trabajo Futuro
 - **Filtrado y Suavizado Previo:** Aplicar filtros de *Savitzky-Golay* o *Splines cúbicos* sobre las series temporales antes de calcular las derivadas numéricas para reducir la varianza en la variable objetivo.
 - **Incorporación de Variables Exógenas y Kernels Estructurados:** Añadir índices de movilidad poblacional como variable de estado adicional y evaluar *Kernels Polinomiales* de grado 2 para recuperar explícitamente las interacciones bilineales $$S(t)I(t)$$ de la epidemiología clásica.
-EOF
