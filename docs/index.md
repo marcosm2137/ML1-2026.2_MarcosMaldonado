@@ -1,132 +1,418 @@
----
-layout: default
-title: Descubrimiento de Sistemas Dinámicos Continuos (Epidemiología SIR)
----
+# Descubrimiento de Sistemas Dinámicos Continuos mediante Machine Learning
 
-<script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+## Caso de estudio: dinámica epidemiológica SIR de Chile (2020–2021)
 
-# Descubrimiento de Sistemas Dinámicos Continuos mediante Kernel Ridge Regression
+**Proyecto semestral — Machine Learning I (23433)**  
+**Institución:** Facultad de Ingeniería, Universidad Nacional de Asunción (FIUNA)  
+**Carrera:** Ingeniería Electrónica  
+**Periodo académico:** 2026.2  
 
-**Proyecto Semestral — Machine Learning 1 (23433)**  
-*Facultad de Ingeniería, Universidad Nacional de Asunción (FIUNA) — Ingeniería Electrónica*  
-*Semestre 2026*
+**Integrante:** Marcos Maldonado — [@marcosm2137](https://github.com/marcosm2137)
 
----
-
-## 1. Portada e Identificación Académica
-
-- **Título Formal:** Descubrimiento de Sistemas Dinámicos Continuos en Epidemiología (Modelo SIR) mediante Kernel Ridge Regression.
-- **Institución:** Facultad de Ingeniería, Universidad Nacional de Asunción (FIUNA) — Carrera de Ingeniería Electrónica.
-- **Asignatura:** Machine Learning 1 (Código 23433) — Semestre 2026.
-- **Equipo de Trabajo:**
-  - **Marcos Maldonado** — `marcosm2137` — [Perfil de GitHub](https://github.com/marcosm2137)
-- **Enlaces del Proyecto:**
-  - [Ver Repositorio Fuente en GitHub](https://github.com/marcosm2137/ML1-2026.2_MarcosMaldonado)
-  - [Abrir Cuaderno Interactivo (.ipynb)](https://github.com/marcosm2137/ML1-2026.2_MarcosMaldonado/blob/main/ProyectoFinal/proyectoFinal.ipynb)
+**Enlaces del proyecto:**
+- [Repositorio fuente en GitHub](https://github.com/marcosm2137/ML1-2026.2_MarcosMaldonado)
+- [Notebook del proyecto](https://github.com/marcosm2137/ML1-2026.2_MarcosMaldonado/blob/main/ProyectoFinal/proyectoFinal.ipynb)
 
 ---
 
-## 2. Definición del Problema y Justificación
+## 1. Definición del problema y objetivos
 
-### Contexto y Problema del Mundo Real
-El modelado matemático de la propagación de enfermedades infecciosas (como el COVID-19) depende tradicionalmente de sistemas de Ecuaciones Diferenciales Ordinarias (EDO) compartimentales, siendo el modelo **SIR** (*Susceptibles, Infectados, Recuperados*) el estándar clásico. En este enfoque convencional, se asumen tasas de contagio ($$\beta$$) y recuperación ($$\gamma$$) constantes, ajustadas mediante métodos heurísticos o curvas teóricas rígidas.
+### Contexto
 
-### Justificación del Enfoque de Machine Learning
-Frente al modelado heurístico que impone una estructura matemática estricta a priori (como interacciones puramente bilineales $$\beta S(t)I(t)$$), este proyecto implementa un paradigma puramente impulsado por datos (*data-driven*) basado en la metodología de *García et al. (2021)*. En lugar de asumir una ecuación cerrada, empleamos **Kernel Ridge Regression (KRR)** para aprender el campo vectorial desconocido $$\frac{d\mathbf{x}}{dt} = \tilde{f}(\mathbf{x})$$ directamente a partir de series temporales empíricas. El *Kernel Trick* proyecta los estados poblacionales a un espacio de Hilbert de alta dimensión donde las dinámicas no lineales complejas pueden aproximarse linealmente sin conocimiento analítico previo del sistema.
+El modelado de epidemias suele realizarse mediante sistemas de ecuaciones diferenciales ordinarias (EDO) compartimentales. Uno de los enfoques clásicos es el modelo SIR, que divide a la población en tres grupos:
 
-### Tipo de Tarea y Objetivos
-- **Tarea de Aprendizaje:** Regresión multivariada continua sobre campos vectoriales y descubrimiento de sistemas dinámicos.
-- **Objetivo General:** Desarrollar y validar un pipeline de Machine Learning capaz de aprender la dinámica continua de la epidemia de COVID-19 en Chile y reconstruir su evolución temporal sin ecuaciones diferenciales predefinidas.
-- **Objetivos Específicos:**
-  1. Extraer y preprocesar las series temporales de la Universidad Johns Hopkins para construir el espacio de fases $$\mathbf{x}(t) = [S(t), I(t), R(t)]$$.
-  2. Analizar mediante EDA las distribuciones, correlaciones y disparidades de escala de las variables epidemiológicas.
-  3. Entrenar y optimizar mediante validación cruzada (`GridSearchCV`) un modelo base lineal (*Ridge*, Unidad 4) frente a un modelo no lineal basado en kernels (*Kernel Ridge RBF*, Unidad 5).
-  4. Reconstruir la trayectoria completa a lo largo de 455 días integrando el campo vectorial aprendido con el método numérico Runge-Kutta de 4to orden (`RK4`) y evaluar su precisión mediante `RMSE`, `MAE` y $$R^2$$.
+- **Susceptibles (S):** personas que aún pueden contraer la enfermedad.
+- **Infectados (I):** personas que se encuentran activamente infectadas.
+- **Removidos (R):** personas recuperadas o fallecidas.
 
----
+Los modelos epidemiológicos tradicionales suelen definir explícitamente parámetros como las tasas de transmisión y recuperación. Sin embargo, las dinámicas reales pueden presentar relaciones no lineales y variaciones que dificultan la identificación de una estructura matemática fija.
 
-## 3. Conjunto de Datos y Análisis Exploratorio (EDA)
+En este proyecto se utiliza un enfoque basado en datos (*data-driven*) para aproximar directamente el campo vectorial de un sistema dinámico continuo mediante algoritmos de Machine Learning.
 
-### Fuente y Descripción de Variables
-- **Origen:** Repositorio oficial de series temporales de COVID-19 del *Center for Systems Science and Engineering* (CSSE) de la Universidad Johns Hopkins (JHU).
-- **Instancias:** **455 observaciones diarias** consecutivas correspondientes a Chile, comprendidas entre el 3 de marzo de 2020 y el 31 de mayo de 2021.
-- **Variables Construidas:** A partir de los conteos diarios acumulados de *Confirmados*, *Recuperados* y *Fallecidos*, y considerando una población total $$N = 19,116,209$$ habitantes, se derivan 3 variables numéricas continuas:
-  - $$S(t)$$: Población Susceptible ($$N - \text{Confirmados}$$).
-  - $$I(t)$$: Población Infectada activa ($$\text{Confirmados} - \text{Recuperados} - \text{Fallecidos}$$).
-  - $$R(t)$$: Población Removida/Recuperada ($$\text{Recuperados} + \text{Fallecidos}$$).
+### Pregunta de investigación
 
-### Estrategia de Preprocesamiento (Unidad 2)
-1. **Limpieza y Consistencia:** Filtrado estricto sobre la ventana activa de reporte diario continuo para evitar valores nulos o discontinuidades administrativas posteriores al cese de reporte de recuperados.
-2. **Ingeniería de la Variable Objetivo ($$\frac{d\mathbf{x}}{dt}$$):** Cálculo de las tasas de cambio instantáneas (velocidades en el espacio de fases) mediante diferencias finitas centrales (`np.gradient`), transformando el problema en un aprendizaje supervisado $$\mathbf{x}(t) \mapsto \dot{\mathbf{x}}(t)$$.
-3. **Estandarización (`StandardScaler`):** Paso indispensable debido a la disparidad de órdenes de magnitud entre Susceptibles ($$\sim 10^7$$) e Infectados activos ($$\sim 10^4$$). Sin escalar a media cero y varianza unitaria, la distancia euclidiana $$\|\mathbf{x}_i - \mathbf{x}_j\|^2$$ del kernel gaussiano quedaría dominada exclusivamente por $$S(t)$$.
+¿Es posible aprender un campo vectorial continuo a partir de observaciones epidemiológicas históricas y utilizarlo para pronosticar la evolución de un sistema SIR, comparando un modelo lineal Ridge con Kernel Ridge Regression utilizando un kernel de base radial (RBF)?
 
-### Visualizaciones e Interpretación del EDA
+### Objetivo general
 
-![Análisis Exploratorio de Datos SIR](img/eda_sir.png)
+Desarrollar y evaluar un procedimiento de aprendizaje automático capaz de aproximar la dinámica continua de la epidemia de COVID-19 en Chile y generar pronósticos fuera de muestra mediante integración numérica.
 
-1. **Diferencia de Escalas (Panel Izquierdo):** El gráfico logarítmico confirma que $$S(t)$$ opera en el orden de $$10^7$$ mientras que $$I(t)$$ fluctúa alrededor de $$10^4$$, justificando plenamente la aplicación de `StandardScaler`.
-2. **Correlaciones Lineales vs. No Lineales (Panel Central):** Existe una correlación lineal inversa perfecta ($$r = -1.000$$) entre Susceptibles y Removidos debido a la conservación poblacional ($$S + I + R = N$$). Sin embargo, la correlación de los Infectados activos con $$S$$ ($$r = -0.606$$) es moderada, reflejando interacciones no lineales entre múltiples olas.
-3. **Geometría de Olas Epidémicas (Panel Derecho):** El diagrama de dispersión coloreado por tiempo revela bucles y cambios de curvatura (olas de contagio), demostrando que un hiperplano lineal no puede capturar la dinámica del sistema.
+### Objetivos específicos
+
+1. Construir las variables SIR a partir de las series históricas de casos confirmados, recuperados y fallecidos.
+2. Realizar un análisis exploratorio de los datos y estudiar sus relaciones temporales y geométricas.
+3. Estimar las derivadas del sistema mediante diferencias finitas hacia adelante.
+4. Entrenar y optimizar modelos Ridge y Kernel Ridge Regression con kernel RBF.
+5. Integrar los campos vectoriales aprendidos mediante Runge-Kutta de cuarto orden (RK4).
+6. Comparar los pronósticos con un modelo de persistencia utilizando métricas de error por compartimento.
 
 ---
 
-## 4. Metodología y Modelado
+## 2. Conjunto de datos y preprocesamiento
 
-### Algoritmos Evaluados
-1. **Regresión Lineal Ridge (Baseline — Unidad 4):** Modelo lineal paramétrico que estima el campo vectorial $$\dot{\mathbf{x}} = W\mathbf{x}$$ minimizando el error cuadrático medio sujeto a una penalización L2 ($$\lambda \|W\|_2^2$$) para controlar la varianza.
-2. **Kernel Ridge Regression con Kernel RBF (Modelo Propuesto — Unidades 4 y 5):** Combina la regularización L2 con el *Kernel Trick* mediante una Función de Base Radial Gaussiana:
+### Fuente de datos
 
-$$k(\mathbf{x}_i, \mathbf{x}_j) = \exp\left(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|^2\right)$$
+Se utilizan las series temporales históricas del repositorio COVID-19 del Center for Systems Science and Engineering (CSSE) de la Universidad Johns Hopkins (JHU).
 
-Esto permite aprender un campo vectorial infinitamente diferenciable ($$C^\infty$$) capaz de representar interacciones no lineales arbitrarias entre compartimentos.
+El conjunto de datos corresponde a Chile y contiene **455 observaciones diarias**, desde el **3 de marzo de 2020 hasta el 31 de mayo de 2021**.
 
-### Validación Cruzada y Optimización de Hiperparámetros
-- **Validación Cruzada (`KFold`):** Se empleó `KFold` con 5 particiones (`shuffle=True, random_state=42`) para evaluar la capacidad de generalización sobre las derivadas estimadas y evitar fuga de datos (*data leakage*).
-- **Optimización (`GridSearchCV`):** Búsqueda exhaustiva en escala logarítmica:
-  - *Linear Ridge:* `alpha` $$\in [10^{-3}, 10^{2}]$$ (25 valores).
-  - *Kernel Ridge (RBF):* `alpha` $$\in [10^{-4}, 10^{1}]$$ y `gamma` $$\in [10^{-3}, 10^{1}]$$ ($$25 \times 25 = 625$$ combinaciones).
+Se utilizan las series acumuladas de:
+- Casos confirmados.
+- Casos recuperados.
+- Fallecimientos.
 
-### Justificación de las Métricas de Evaluación
-Evaluar únicamente el error en un paso de derivada no garantiza estabilidad temporal. Por ello, integramos el campo vectorial aprendido desde la condición inicial $$\mathbf{x}(0)$$ durante los 455 días mediante **Runge-Kutta de 4to Orden (RK4)** y evaluamos la trayectoria reconstruida con:
-- **RMSE (Root Mean Squared Error):** Penaliza fuertemente las desviaciones en los picos máximos de contagio.
-- **MAE (Mean Absolute Error):** Mide el error promedio directo en número de individuos.
-- **$$R^2$$ (Coeficiente de Determinación):** Cuantifica la proporción de la varianza global del sistema dinámico explicada por la EDO descubierta.
+Para construir el sistema SIR se considera una población constante de:
+
+\[
+N = 19.370.624
+\]
+
+Este valor corresponde a la estimación de población total de Chile para 2020 publicada por el Banco Mundial (indicador `SP.POP.TOTL`).
+
+### Construcción de los compartimentos
+
+A partir de los conteos acumulados se construyen las siguientes variables:
+
+\[
+S(t) = N - \operatorname{Confirmados}(t)
+\]
+
+\[
+I(t) = \operatorname{Confirmados}(t)
+- \operatorname{Recuperados}(t)
+- \operatorname{Fallecidos}(t)
+\]
+
+\[
+R(t) = \operatorname{Recuperados}(t)
++ \operatorname{Fallecidos}(t)
+\]
+
+Por construcción:
+
+\[
+S(t)+I(t)+R(t)=N
+\]
+
+La variable de infectados representa una aproximación contable de los casos activos y no necesariamente el número real de personas infecciosas en cada fecha.
+
+### Preprocesamiento
+
+Se aplica una media móvil retrospectiva de siete días (`center=False`) para reducir parte de la variabilidad de los reportes diarios. Al ser causal, el suavizado utiliza únicamente observaciones pasadas y actuales.
+
+El experimento utiliza una partición cronológica 80/20:
+
+| Conjunto | Periodo | Observaciones |
+|---|---|---:|
+| Entrenamiento | 2020-03-03 a 2021-03-01 | 364 |
+| Prueba | 2021-03-02 a 2021-05-31 | 91 |
+| Total | 2020-03-03 a 2021-05-31 | 455 |
+
+El conjunto de prueba permanece separado durante el escalado, la validación cruzada, la selección de hiperparámetros y el ajuste final.
 
 ---
 
-## 5. Resultados, Comparativa y Discusión
+## 3. Análisis exploratorio de datos (EDA)
 
-### Tabla Comparativa de Rendimiento (Reconstrucción RK4 a 455 Días)
+El análisis exploratorio permite examinar la evolución temporal de los compartimentos, las relaciones entre variables y la geometría del sistema en el espacio de fases.
 
-| Modelo Evaluado | Hiperparámetros Óptimos (`GridSearchCV`) | RMSE (Individuos) | MAE (Individuos) | $$R^2$$ Global |
-| :--- | :--- | :---: | :---: | :---: |
-| **Linear Ridge (Baseline)** | `alpha = 100.0` | 102,181.50 | 72,403.45 | 0.4658 |
-| **Kernel Ridge Regression (RBF)** | `alpha = 0.0001`, `gamma = 0.4642` | **42,710.59** | **29,857.60** | **0.7598** |
+![Análisis exploratorio del sistema SIR](img/eda_sir.png)
 
-### Gráficos de Desempeño y Reconstrucción
+**Figura 1. Análisis exploratorio del sistema SIR.** Se presentan la evolución temporal de los compartimentos, la matriz de correlación y la representación del espacio de fases entre susceptibles e infectados.
 
-![Comparativa de Series Temporales SIR](img/resultados_2d.png)
+La identidad de conservación poblacional introduce una dependencia algebraica entre S, I y R. Por ello, las correlaciones observadas no deben interpretarse como relaciones causales independientes.
 
-![Reconstrucción del Atractor SIR en 3D](img/resultados_3d.png)
-
-### Análisis Crítico de los Resultados
-1. **Subajuste (*Underfitting*) Estructural del Baseline Lineal:** El modelo *Linear Ridge* obtiene apenas un $$R^2 = 0.4658$$ ($$\text{RMSE} = 102,181.50$$, $$\text{MAE} = 72,403.45$$). De manera reveladora, `GridSearchCV` llevó su hiperparámetro al límite superior de la grilla ($$\alpha = 100.0$$): al ser incapaz de representar el producto no lineal $$\beta S(t)I(t)$$ que gobierna los contagios, el modelo recurre a la máxima penalización L2 para frenar la divergencia exponencial de las trayectorias durante la integración RK4.
-2. **Superioridad del Kernel Ridge Regression (RBF):** Al incorporar el *Kernel Trick* con una función de base radial gaussiana ($$\alpha = 0.0001$$, $$\gamma \approx 0.4642$$), el **RMSE disminuye en un 58.2 %** ($$42,710.59$$), el **MAE cae en un 58.8 %** ($$29,857.60$$) y la varianza explicada asciende a **$$R^2 = 0.7598$$**. Esto demuestra cuantitativamente que el mapeo no lineal reconstruye con fidelidad las olas epidémicas partiendo exclusivamente del estado inicial del Día 0.
-3. **Equilibrio Sesgo–Varianza y Dinámica Real:** La órbita reconstruida en 3D sigue de forma suave la trayectoria central de los datos sin sobreajustarse al ruido de los reportes diarios. El error residual ($$1 - R^2 \approx 0.24$$) refleja la naturaleza no autónoma de una pandemia real, donde factores externos (cuarentenas, cambios de movilidad y variantes) alteran la dinámica más allá del estado instantáneo $$[S(t), I(t), R(t)]$$.
+Las diferencias de escala entre los compartimentos también justifican el uso de estandarización dentro de los modelos de aprendizaje.
 
 ---
 
-## 6. Conclusiones y Trabajo Futuro
+## 4. Metodología y modelado
 
-### Conclusiones Principales
-- Se validó exitosamente la aplicación de **Kernel Ridge Regression (RBF)** para el descubrimiento empírico de sistemas dinámicos continuos, demostrando cómo la combinación de regularización L2 (*Unidad 4*) y el *Kernel Trick* (*Unidad 5*) permite aprender campos vectoriales complejos sin ecuaciones analíticas predefinidas.
-- El preprocesamiento mediante `StandardScaler` (*Unidad 2*) resultó determinante para evitar el sesgo de escala en el cálculo de distancias del kernel gaussiano.
+### 4.1 Formulación del sistema dinámico
 
-### Limitaciones Identificadas
-- **Estacionariedad del Campo Vectorial:** KRR aprende un campo autónomo $$\tilde{f}(\mathbf{x})$$, asumiendo que las reglas de transición no cambian explícitamente con el tiempo $$t$$.
-- **Amplificación de Ruido por Diferencias Finitas:** Estimar $$\frac{d\mathbf{x}}{dt}$$ directamente mediante `np.gradient` sobre conteos diarios introduce ruido de alta frecuencia derivado de retrasos administrativos en los reportes de fin de semana.
-- **Capacidad de Extrapolación Limitada:** Debido a que el kernel RBF decae exponencialmente hacia cero lejos de los puntos de entrenamiento, el modelo es altamente preciso para interpolar y reconstruir dinámicas observadas, pero pierde precisión al extrapolar olas futuras fuera del dominio histórico.
+Se considera el vector de estado:
 
-### Propuestas de Mejora y Trabajo Futuro
-- **Filtrado y Suavizado Previo:** Aplicar filtros de *Savitzky-Golay* o *Splines cúbicos* sobre las series temporales antes de calcular las derivadas numéricas para reducir la varianza en la variable objetivo.
-- **Incorporación de Variables Exógenas y Kernels Estructurados:** Añadir índices de movilidad poblacional como variable de estado adicional y evaluar *Kernels Polinomiales* de grado 2 para recuperar explícitamente las interacciones bilineales $$S(t)I(t)$$ de la epidemiología clásica.
+\[
+\mathbf{x}(t) =
+\begin{bmatrix}
+S(t)\\
+I(t)\\
+R(t)
+\end{bmatrix}
+\]
+
+El objetivo es aproximar un sistema autónomo de ecuaciones diferenciales:
+
+\[
+\dot{\mathbf{x}} = f(\mathbf{x})
+\]
+
+En lugar de imponer una estructura epidemiológica paramétrica con tasas constantes, se utilizan modelos de regresión para aprender componentes del campo vectorial directamente desde los datos.
+
+### 4.2 Estimación de derivadas
+
+Las derivadas se aproximan mediante diferencias finitas hacia adelante entre estados suavizados consecutivos:
+
+\[
+\dot{\mathbf{x}}_i \approx
+\frac{\mathbf{x}_{i+1,\mathrm{smooth}}
+-\mathbf{x}_{i,\mathrm{smooth}}}
+{t_{i+1}-t_i}
+\]
+
+A partir de los 364 estados suavizados del conjunto de entrenamiento se obtienen **363 transiciones**.
+
+Cada entrada corresponde al estado inicial completo:
+
+\[
+\mathbf{x}_i=[S_i,I_i,R_i]
+\]
+
+Se estiman dos derivadas independientes:
+
+\[
+\dot I=f_I(S,I,R)
+\]
+
+\[
+\dot R=f_R(S,I,R)
+\]
+
+La derivada del compartimento susceptible se reconstruye mediante la condición de conservación:
+
+\[
+\dot S=-\dot I-\dot R
+\]
+
+El tiempo no se incluye como variable de entrada del modelo.
+
+### 4.3 Algoritmos evaluados
+
+**Ridge Regression**
+
+Se utiliza como línea base lineal. Minimiza el error cuadrático incorporando una penalización L2 sobre los coeficientes:
+
+\[
+J(W)=\|Y-XW\|_2^2+\alpha\|W\|_2^2
+\]
+
+**Kernel Ridge Regression (RBF)**
+
+Se utiliza para representar relaciones no lineales en el campo vectorial mediante el kernel gaussiano:
+
+\[
+k(\mathbf{x}_i,\mathbf{x}_j)=
+\exp\left(-\gamma
+\|\mathbf{x}_i-\mathbf{x}_j\|^2\right)
+\]
+
+El parámetro \(\alpha\) controla la regularización y \(\gamma\) determina la escala de influencia del kernel.
+
+### 4.4 Validación y selección de hiperparámetros
+
+Se emplea validación cruzada cronológica con cinco particiones (`TimeSeriesSplit`) y una separación de siete observaciones (`gap=7`). No se mezclan aleatoriamente las observaciones.
+
+El escalado de las entradas y los objetivos se incorpora dentro de los estimadores, de manera que cada partición ajusta sus propios escaladores.
+
+La selección se realiza en dos etapas:
+
+1. `GridSearchCV` busca los hiperparámetros iniciales por separado para las derivadas de infectados y recuperados. El criterio principal es el error cuadrático medio (`neg_mean_squared_error`), mientras que \(R^2\) se conserva como métrica complementaria.
+2. Una búsqueda local por coordenadas refina los parámetros utilizando el error RMSE normalizado de las trayectorias integradas de los compartimentos I y R en las particiones de validación.
+
+Los hiperparámetros finales se reajustan utilizando todas las transiciones del conjunto de entrenamiento.
+
+| Modelo | Objetivo | Hiperparámetros finales |
+|---|---|---|
+| Ridge | \(dI/dt\) | \(\alpha=1581.1388\) |
+| Ridge | \(dR/dt\) | \(\alpha=250.0\) |
+| KRR RBF | \(dI/dt\) | \(\alpha=2.5,\ \gamma=0.06947\) |
+| KRR RBF | \(dR/dt\) | \(\alpha=0.05,\ \gamma=0.01526\) |
+
+### 4.5 Integración numérica y conservación
+
+Los campos vectoriales aprendidos se integran mediante el método clásico de Runge-Kutta de cuarto orden (RK4), utilizando cinco subpasos por día.
+
+La condición:
+
+\[
+\dot S+\dot I+\dot R=0
+\]
+
+garantiza la conservación de la población total durante la integración, salvo pequeños errores numéricos de punto flotante.
+
+Los pronósticos comienzan en el último estado suavizado conocido del entrenamiento, correspondiente al 1 de marzo de 2021, y se extienden durante los 91 días del conjunto de prueba.
+
+También se utiliza un modelo de persistencia como referencia, que mantiene constante el último estado conocido del entrenamiento durante todo el horizonte de prueba.
+
+---
+
+## 5. Resultados y evaluación fuera de muestra
+
+La evaluación principal compara los pronósticos con las observaciones suavizadas causalmente del período de prueba. También se realiza un análisis de sensibilidad utilizando los conteos diarios originales sin suavizar.
+
+Las métricas se calculan por compartimento:
+
+- **RMSE:** raíz del error cuadrático medio.
+- **MAE:** error absoluto medio.
+- **R²:** coeficiente de determinación.
+- **WAPE:** error porcentual absoluto ponderado.
+
+### 5.1 Métricas sobre la serie suavizada
+
+| Compartimento | Modelo | RMSE (personas) | MAE (personas) | R² | WAPE (%) |
+|---|---|---:|---:|---:|---:|
+| S | Ridge | 144,567.43 | 120,683.92 | 0.221 | 0.660 |
+| S | KRR RBF | 61,878.40 | 53,407.41 | 0.857 | 0.292 |
+| S | Persistencia | 313,340.52 | 267,101.28 | -2.658 | 1.461 |
+| I | Ridge | 18,261.75 | 17,117.41 | -8.924 | 44.662 |
+| I | KRR RBF | 8,322.13 | 6,709.16 | -1.061 | 17.505 |
+| I | Persistencia | 16,592.51 | 15,546.94 | -7.193 | 40.564 |
+| R | Ridge | 128,195.50 | 103,566.51 | 0.364 | 9.904 |
+| R | KRR RBF | 57,241.19 | 47,049.74 | 0.873 | 4.499 |
+| R | Persistencia | 298,560.36 | 251,554.35 | -2.447 | 24.057 |
+
+KRR obtuvo los menores valores de RMSE y MAE en los tres compartimentos. Para el compartimento infectado, el MAE disminuyó aproximadamente un 60.8 % respecto de Ridge y un 56.8 % respecto de Persistencia.
+
+### 5.2 Sensibilidad ante los datos diarios sin suavizar
+
+| Compartimento | Modelo | RMSE (personas) | MAE (personas) |
+|---|---|---:|---:|
+| S | Ridge | 160,442.72 | 138,792.94 |
+| S | KRR RBF | 78,532.10 | 71,516.42 |
+| S | Persistencia | 329,365.45 | 285,210.30 |
+| I | Ridge | 18,825.26 | 17,813.24 |
+| I | KRR RBF | 9,018.32 | 7,402.48 |
+| I | Persistencia | 17,171.11 | 16,242.76 |
+| R | Ridge | 143,320.73 | 120,979.70 |
+| R | KRR RBF | 72,988.60 | 64,434.53 |
+| R | Persistencia | 314,065.27 | 268,967.54 |
+
+La ventaja de KRR también se mantiene al evaluar los conteos diarios originales. Para los infectados, su MAE fue de 7,402.48 personas, frente a 17,813.24 de Ridge y 16,242.76 de Persistencia.
+
+### 5.3 Interpretación de las métricas
+
+Aunque KRR obtuvo los menores errores absolutos, el valor de \(R^2\) del compartimento infectado sigue siendo negativo:
+
+\[
+R^2_I=-1.061
+\]
+
+en la serie suavizada, y:
+
+\[
+R^2_I=-1.622
+\]
+
+en los datos diarios sin suavizar.
+
+Un \(R^2\) negativo indica que el error cuadrático del pronóstico supera al de un predictor constante basado en la media del conjunto de prueba. Esto no implica necesariamente un desempeño inferior al modelo de Persistencia, porque ambos utilizan referencias diferentes.
+
+Por lo tanto, el resultado debe interpretarse considerando conjuntamente RMSE, MAE, R² y WAPE.
+
+### 5.4 Pronósticos temporales
+
+![Pronósticos SIR fuera de muestra](img/resultados_2d.png)
+
+**Figura 2. Pronósticos fuera de muestra para los compartimentos S, I y R.** Se muestran las observaciones originales y suavizadas, las trayectorias pronosticadas por Ridge y KRR RBF, y el límite entre los períodos de entrenamiento y prueba.
+
+### 5.5 Reconstrucción tridimensional del sistema SIR
+
+![Trayectorias SIR en el espacio de estados tridimensional](img/resultados_3d.png)
+
+**Figura 3. Trayectorias en el espacio de estados SIR.** Se comparan la trayectoria de entrenamiento, la trayectoria observada durante el período de prueba y las trayectorias pronosticadas por Ridge y KRR RBF.
+
+---
+
+## 6. Análisis del pico de infectados y diagnósticos numéricos
+
+### 6.1 Estimación del pico de infectados
+
+El máximo observado de infectados suavizados durante el período de prueba fue de aproximadamente **44,994 personas**, registrado el **17 de abril de 2021** (día 47 del horizonte).
+
+| Referencia / Modelo | Fecha del pico | Infectados | Error de magnitud | Error temporal |
+|---|---|---:|---:|---:|
+| Observado | 2021-04-17 | 44,994 | 0.00 % | 0 días |
+| Ridge | 2021-03-02 | 22,761 | -49.41 % | -46 días |
+| KRR RBF | 2021-05-31 | 40,695 | -9.55 % | +44 días |
+
+KRR aproximó mejor la magnitud del pico, con una subestimación de aproximadamente 9.55 %. Sin embargo, su máximo pronosticado se encuentra en el último día del horizonte de prueba.
+
+Por ello, este valor representa el máximo dentro del período evaluado y no una estimación confirmada del pico epidémico definitivo.
+
+Ridge, por su parte, subestimó notablemente la magnitud del pico y ubicó su máximo al inicio del período de prueba.
+
+### 6.2 Conservación y positividad
+
+La conservación poblacional se impone algebraicamente durante la construcción del campo vectorial:
+
+\[
+\dot S=-\dot I-\dot R
+\]
+
+Los diagnósticos numéricos de las trayectorias de prueba fueron:
+
+| Modelo | Error máximo de conservación | Estados negativos |
+|---|---:|---:|
+| Ridge | \(1.49\times10^{-8}\) | 0 |
+| KRR RBF | \(1.86\times10^{-8}\) | 0 |
+
+Ambos modelos produjeron trayectorias finitas, conservaron la población total dentro de la precisión numérica y no presentaron valores negativos en los compartimentos durante el horizonte evaluado.
+
+---
+
+## 7. Discusión y limitaciones
+
+Los resultados indican que KRR RBF representa mejor las relaciones no lineales del sistema que la línea base Ridge en términos de RMSE y MAE sobre el bloque de prueba. También supera al modelo de Persistencia en los errores absolutos de los tres compartimentos.
+
+Sin embargo, el desempeño no es uniforme en todas las dimensiones de evaluación. El R² negativo de los infectados y el retraso de 44 días en la estimación del pico muestran que una reducción del error absoluto no garantiza una reproducción precisa de los cambios epidemiológicos ni de sus puntos de inflexión.
+
+Entre las principales limitaciones se encuentran:
+
+- **Aproximación de infectados activos:** la expresión \(I=\text{Confirmados}-\text{Recuperados}-\text{Fallecidos}\) es una construcción contable a partir de registros históricos y no necesariamente refleja la cantidad real de personas infecciosas.
+- **Dinámica autónoma:** el campo vectorial supone que un mismo estado SIR produce siempre las mismas derivadas. No incorpora explícitamente cambios temporales en políticas sanitarias, movilidad, vacunación o variantes.
+- **Calidad de los registros:** las revisiones administrativas y los cambios en los criterios de notificación pueden producir discontinuidades y ruido en las series.
+- **Suavizado:** la media móvil causal reduce parte de la variabilidad diaria, pero también puede atenuar o desplazar cambios bruscos.
+- **Horizonte de evaluación:** los resultados corresponden a una única partición cronológica de 91 días y no garantizan el mismo desempeño en otros períodos epidemiológicos.
+- **Incertidumbre:** el procedimiento genera pronósticos deterministas y no proporciona intervalos de predicción ni cuantifica explícitamente la incertidumbre.
+
+Además, el cumplimiento de la conservación poblacional es una restricción algebraica impuesta por construcción. No demuestra que el sistema aprendido represente todos los mecanismos epidemiológicos de un modelo SIR mecanístico.
+
+---
+
+## 8. Conclusiones
+
+En este experimento, Kernel Ridge Regression con kernel RBF obtuvo el mejor desempeño general entre los modelos evaluados, superando a Ridge lineal y Persistencia en RMSE y MAE para los tres compartimentos del conjunto de prueba.
+
+La mejora también se mantiene al comparar los pronósticos con las observaciones diarias originales sin suavizar, lo que indica que el desempeño de KRR no depende exclusivamente del suavizado aplicado durante el preprocesamiento.
+
+La integración mediante RK4 generó trayectorias numéricamente estables, conservando la población total y manteniendo la no negatividad de los compartimentos durante los 91 días evaluados.
+
+No obstante, el R² negativo para los infectados y el error temporal en la estimación del pico evidencian limitaciones en la representación de las variaciones y los puntos de inflexión de la epidemia.
+
+En conclusión, los resultados respaldan el uso de KRR RBF como una alternativa no lineal prometedora para aproximar sistemas dinámicos continuos a partir de datos epidemiológicos. Sin embargo, sus pronósticos deben interpretarse como una aproximación experimental y no como predicciones epidemiológicas operacionales.
+
+### Trabajo futuro
+
+Como posibles extensiones se proponen:
+
+- Incorporar variables exógenas, como movilidad, vacunación e intervenciones sanitarias.
+- Evaluar campos vectoriales no autónomos que permitan representar cambios temporales en la dinámica.
+- Comparar diferentes métodos de suavizado y estimación de derivadas.
+- Evaluar múltiples ventanas cronológicas de entrenamiento y prueba.
+- Incorporar métodos para cuantificar la incertidumbre de los pronósticos.
+
+---
+
+## 9. Referencias
+
+1. Kermack, W. O., & McKendrick, A. G. (1927). A contribution to the mathematical theory of epidemics. *Proceedings of the Royal Society A, 115*(772), 700–721. https://doi.org/10.1098/rspa.1927.0118
+
+2. Johns Hopkins University, Center for Systems Science and Engineering (JHU CSSE). *COVID-19 Data Repository*. https://github.com/CSSEGISandData/COVID-19
+
+3. World Bank. *Population, total (SP.POP.TOTL): Chile*. World Development Indicators. https://data.worldbank.org/indicator/SP.POP.TOTL?locations=CL
+
+4. García, P. (2022). Modeling systems with machine learning based differential equations. *Chaos, Solitons & Fractals, 165*, Article 112872. https://doi.org/10.1016/j.chaos.2022.112872
+
+5. Hoerl, A. E., & Kennard, R. W. (1970). Ridge regression: Biased estimation for nonorthogonal problems. *Technometrics, 12*(1), 55–67. https://doi.org/10.1080/00401706.1970.10488634
+
+6. Pedregosa, F., et al. (2011). Scikit-learn: Machine learning in Python. *Journal of Machine Learning Research, 12*, 2825–2830. https://www.jmlr.org/papers/v12/pedregosa11a.html
