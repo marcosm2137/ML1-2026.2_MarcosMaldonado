@@ -15,7 +15,6 @@ window.MathJax = {
   }
 };
 </script>
-
 <script defer id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 
 # Descubrimiento de Sistemas Dinámicos Continuos mediante Machine Learning
@@ -170,8 +169,8 @@ Se considera el vector de estado:
 $$
 \mathbf{x}(t) =
 \begin{bmatrix}
-S(t)\\\\
-I(t)\\\\
+S(t)\\
+I(t)\\
 R(t)
 \end{bmatrix}
 $$
@@ -228,7 +227,7 @@ El tiempo no se incluye como variable de entrada del modelo.
 Se utiliza como línea base lineal. Minimiza el error cuadrático incorporando una penalización L2 sobre los coeficientes:
 
 $$
-J(W)=\\|Y-XW\\|_2^2+\alpha\\|W\\|_2^2
+J(W)=\|Y-XW\|_2^2+\alpha\|W\|_2^2
 $$
 
 **Kernel Ridge Regression (RBF)**
@@ -238,7 +237,7 @@ Se utiliza para representar relaciones no lineales en el campo vectorial mediant
 $$
 k(\mathbf{x}_i,\mathbf{x}_j)=
 \exp\left(-\gamma
-\\|\mathbf{x}_i-\mathbf{x}_j\\|^2\right)
+\|\mathbf{x}_i-\mathbf{x}_j\|^2\right)
 $$
 
 El parámetro $\alpha$ controla la regularización y $\gamma$ determina la escala de influencia del kernel.
