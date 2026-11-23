@@ -6,8 +6,8 @@ title: Descubrimiento de Sistemas Dinámicos Continuos (Epidemiología SIR)
 <script>
 window.MathJax = {
   tex: {
-    inlineMath: [['$', '$']],
-    displayMath: [['$$', '$$']],
+    inlineMath: [['\\(', '\\)'], ['$', '$']],
+    displayMath: [['\\[', '\\]'], ['$$', '$$']],
     processEscapes: true
   },
   options: {
