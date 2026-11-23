@@ -1,33 +1,41 @@
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-  tex2jax: {
-    inlineMath: [['\\(', '\\)']],
-    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+---
+layout: default
+title: Descubrimiento de Sistemas Dinámicos Continuos (Epidemiología SIR)
+---
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$']],
+    displayMath: [['$$', '$$']],
     processEscapes: true
+  },
+  options: {
+    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
   }
-});
+};
 </script>
 
-<script
-  type="text/javascript"
-  async
-  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
-</script>
-
+<script defer id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 
 # Descubrimiento de Sistemas Dinámicos Continuos mediante Machine Learning
 
 ## Caso de estudio: dinámica epidemiológica SIR de Chile (2020–2021)
 
 **Proyecto semestral — Machine Learning I (23433)**  
+
 **Institución:** Facultad de Ingeniería, Universidad Nacional de Asunción (FIUNA)  
+
 **Carrera:** Ingeniería Electrónica  
+
 **Periodo académico:** 2026.2  
 
 **Integrante:** Marcos Maldonado — [@marcosm2137](https://github.com/marcosm2137)
 
 **Enlaces del proyecto:**
+
 - [Repositorio fuente en GitHub](https://github.com/marcosm2137/ML1-2026.2_MarcosMaldonado)
+
 - [Notebook del proyecto](https://github.com/marcosm2137/ML1-2026.2_MarcosMaldonado/blob/main/ProyectoFinal/proyectoFinal.ipynb)
 
 ---
@@ -39,7 +47,9 @@ MathJax.Hub.Config({
 El modelado de epidemias suele realizarse mediante sistemas de ecuaciones diferenciales ordinarias (EDO) compartimentales. Uno de los enfoques clásicos es el modelo SIR, que divide a la población en tres grupos:
 
 - **Susceptibles (S):** personas que aún pueden contraer la enfermedad.
+
 - **Infectados (I):** personas que se encuentran activamente infectadas.
+
 - **Removidos (R):** personas recuperadas o fallecidas.
 
 Los modelos epidemiológicos tradicionales suelen definir explícitamente parámetros como las tasas de transmisión y recuperación. Sin embargo, las dinámicas reales pueden presentar relaciones no lineales y variaciones que dificultan la identificación de una estructura matemática fija.
@@ -57,10 +67,15 @@ Desarrollar y evaluar un procedimiento de aprendizaje automático capaz de aprox
 ### Objetivos específicos
 
 1. Construir las variables SIR a partir de las series históricas de casos confirmados, recuperados y fallecidos.
+
 2. Realizar un análisis exploratorio de los datos y estudiar sus relaciones temporales y geométricas.
+
 3. Estimar las derivadas del sistema mediante diferencias finitas hacia adelante.
+
 4. Entrenar y optimizar modelos Ridge y Kernel Ridge Regression con kernel RBF.
+
 5. Integrar los campos vectoriales aprendidos mediante Runge-Kutta de cuarto orden (RK4).
+
 6. Comparar los pronósticos con un modelo de persistencia utilizando métricas de error por compartimento.
 
 ---
@@ -74,15 +89,18 @@ Se utilizan las series temporales históricas del repositorio COVID-19 del Cente
 El conjunto de datos corresponde a Chile y contiene **455 observaciones diarias**, desde el **3 de marzo de 2020 hasta el 31 de mayo de 2021**.
 
 Se utilizan las series acumuladas de:
+
 - Casos confirmados.
+
 - Casos recuperados.
+
 - Fallecimientos.
 
 Para construir el sistema SIR se considera una población constante de:
 
-\[
+$$
 N = 19.370.624
-\]
+$$
 
 Este valor corresponde a la estimación de población total de Chile para 2020 publicada por el Banco Mundial (indicador `SP.POP.TOTL`).
 
@@ -90,26 +108,26 @@ Este valor corresponde a la estimación de población total de Chile para 2020 p
 
 A partir de los conteos acumulados se construyen las siguientes variables:
 
-\[
+$$
 S(t) = N - \operatorname{Confirmados}(t)
-\]
+$$
 
-\[
+$$
 I(t) = \operatorname{Confirmados}(t)
 - \operatorname{Recuperados}(t)
 - \operatorname{Fallecidos}(t)
-\]
+$$
 
-\[
+$$
 R(t) = \operatorname{Recuperados}(t)
 + \operatorname{Fallecidos}(t)
-\]
+$$
 
 Por construcción:
 
-\[
+$$
 S(t)+I(t)+R(t)=N
-\]
+$$
 
 La variable de infectados representa una aproximación contable de los casos activos y no necesariamente el número real de personas infecciosas en cada fecha.
 
@@ -149,20 +167,20 @@ Las diferencias de escala entre los compartimentos también justifican el uso de
 
 Se considera el vector de estado:
 
-\[
+$$
 \mathbf{x}(t) =
 \begin{bmatrix}
-S(t)\\
-I(t)\\
+S(t)\\\\
+I(t)\\\\
 R(t)
 \end{bmatrix}
-\]
+$$
 
 El objetivo es aproximar un sistema autónomo de ecuaciones diferenciales:
 
-\[
+$$
 \dot{\mathbf{x}} = f(\mathbf{x})
-\]
+$$
 
 En lugar de imponer una estructura epidemiológica paramétrica con tasas constantes, se utilizan modelos de regresión para aprender componentes del campo vectorial directamente desde los datos.
 
@@ -170,36 +188,36 @@ En lugar de imponer una estructura epidemiológica paramétrica con tasas consta
 
 Las derivadas se aproximan mediante diferencias finitas hacia adelante entre estados suavizados consecutivos:
 
-\[
+$$
 \dot{\mathbf{x}}_i \approx
 \frac{\mathbf{x}_{i+1,\mathrm{smooth}}
 -\mathbf{x}_{i,\mathrm{smooth}}}
 {t_{i+1}-t_i}
-\]
+$$
 
 A partir de los 364 estados suavizados del conjunto de entrenamiento se obtienen **363 transiciones**.
 
 Cada entrada corresponde al estado inicial completo:
 
-\[
+$$
 \mathbf{x}_i=[S_i,I_i,R_i]
-\]
+$$
 
 Se estiman dos derivadas independientes:
 
-\[
+$$
 \dot I=f_I(S,I,R)
-\]
+$$
 
-\[
+$$
 \dot R=f_R(S,I,R)
-\]
+$$
 
 La derivada del compartimento susceptible se reconstruye mediante la condición de conservación:
 
-\[
+$$
 \dot S=-\dot I-\dot R
-\]
+$$
 
 El tiempo no se incluye como variable de entrada del modelo.
 
@@ -209,21 +227,21 @@ El tiempo no se incluye como variable de entrada del modelo.
 
 Se utiliza como línea base lineal. Minimiza el error cuadrático incorporando una penalización L2 sobre los coeficientes:
 
-\[
-J(W)=\|Y-XW\|_2^2+\alpha\|W\|_2^2
-\]
+$$
+J(W)=\\|Y-XW\\|_2^2+\alpha\\|W\\|_2^2
+$$
 
 **Kernel Ridge Regression (RBF)**
 
 Se utiliza para representar relaciones no lineales en el campo vectorial mediante el kernel gaussiano:
 
-\[
+$$
 k(\mathbf{x}_i,\mathbf{x}_j)=
 \exp\left(-\gamma
-\|\mathbf{x}_i-\mathbf{x}_j\|^2\right)
-\]
+\\|\mathbf{x}_i-\mathbf{x}_j\\|^2\right)
+$$
 
-El parámetro \(\alpha\) controla la regularización y \(\gamma\) determina la escala de influencia del kernel.
+El parámetro $\alpha$ controla la regularización y $\gamma$ determina la escala de influencia del kernel.
 
 ### 4.4 Validación y selección de hiperparámetros
 
@@ -233,17 +251,18 @@ El escalado de las entradas y los objetivos se incorpora dentro de los estimador
 
 La selección se realiza en dos etapas:
 
-1. `GridSearchCV` busca los hiperparámetros iniciales por separado para las derivadas de infectados y recuperados. El criterio principal es el error cuadrático medio (`neg_mean_squared_error`), mientras que \(R^2\) se conserva como métrica complementaria.
+1. `GridSearchCV` busca los hiperparámetros iniciales por separado para las derivadas de infectados y recuperados. El criterio principal es el error cuadrático medio (`neg_mean_squared_error`), mientras que $R^2$ se conserva como métrica complementaria.
+
 2. Una búsqueda local por coordenadas refina los parámetros utilizando el error RMSE normalizado de las trayectorias integradas de los compartimentos I y R en las particiones de validación.
 
 Los hiperparámetros finales se reajustan utilizando todas las transiciones del conjunto de entrenamiento.
 
 | Modelo | Objetivo | Hiperparámetros finales |
 |---|---|---|
-| Ridge | \(dI/dt\) | \(\alpha=1581.1388\) |
-| Ridge | \(dR/dt\) | \(\alpha=250.0\) |
-| KRR RBF | \(dI/dt\) | \(\alpha=2.5,\ \gamma=0.06947\) |
-| KRR RBF | \(dR/dt\) | \(\alpha=0.05,\ \gamma=0.01526\) |
+| Ridge | $dI/dt$ | $\alpha=1581.1388$ |
+| Ridge | $dR/dt$ | $\alpha=250.0$ |
+| KRR RBF | $dI/dt$ | $\alpha=2.5,\ \gamma=0.06947$ |
+| KRR RBF | $dR/dt$ | $\alpha=0.05,\ \gamma=0.01526$ |
 
 ### 4.5 Integración numérica y conservación
 
@@ -251,9 +270,9 @@ Los campos vectoriales aprendidos se integran mediante el método clásico de Ru
 
 La condición:
 
-\[
+$$
 \dot S+\dot I+\dot R=0
-\]
+$$
 
 garantiza la conservación de la población total durante la integración, salvo pequeños errores numéricos de punto flotante.
 
@@ -270,8 +289,11 @@ La evaluación principal compara los pronósticos con las observaciones suavizad
 Las métricas se calculan por compartimento:
 
 - **RMSE:** raíz del error cuadrático medio.
+
 - **MAE:** error absoluto medio.
+
 - **R²:** coeficiente de determinación.
+
 - **WAPE:** error porcentual absoluto ponderado.
 
 ### 5.1 Métricas sobre la serie suavizada
@@ -308,21 +330,21 @@ La ventaja de KRR también se mantiene al evaluar los conteos diarios originales
 
 ### 5.3 Interpretación de las métricas
 
-Aunque KRR obtuvo los menores errores absolutos, el valor de \(R^2\) del compartimento infectado sigue siendo negativo:
+Aunque KRR obtuvo los menores errores absolutos, el valor de $R^2$ del compartimento infectado sigue siendo negativo:
 
-\[
+$$
 R^2_I=-1.061
-\]
+$$
 
 en la serie suavizada, y:
 
-\[
+$$
 R^2_I=-1.622
-\]
+$$
 
 en los datos diarios sin suavizar.
 
-Un \(R^2\) negativo indica que el error cuadrático del pronóstico supera al de un predictor constante basado en la media del conjunto de prueba. Esto no implica necesariamente un desempeño inferior al modelo de Persistencia, porque ambos utilizan referencias diferentes.
+Un $R^2$ negativo indica que el error cuadrático del pronóstico supera al de un predictor constante basado en la media del conjunto de prueba. Esto no implica necesariamente un desempeño inferior al modelo de Persistencia, porque ambos utilizan referencias diferentes.
 
 Por lo tanto, el resultado debe interpretarse considerando conjuntamente RMSE, MAE, R² y WAPE.
 
@@ -362,16 +384,16 @@ Ridge, por su parte, subestimó notablemente la magnitud del pico y ubicó su m�
 
 La conservación poblacional se impone algebraicamente durante la construcción del campo vectorial:
 
-\[
+$$
 \dot S=-\dot I-\dot R
-\]
+$$
 
 Los diagnósticos numéricos de las trayectorias de prueba fueron:
 
 | Modelo | Error máximo de conservación | Estados negativos |
 |---|---:|---:|
-| Ridge | \(1.49\times10^{-8}\) | 0 |
-| KRR RBF | \(1.86\times10^{-8}\) | 0 |
+| Ridge | $1.49\times10^{-8}$ | 0 |
+| KRR RBF | $1.86\times10^{-8}$ | 0 |
 
 Ambos modelos produjeron trayectorias finitas, conservaron la población total dentro de la precisión numérica y no presentaron valores negativos en los compartimentos durante el horizonte evaluado.
 
@@ -385,11 +407,16 @@ Sin embargo, el desempeño no es uniforme en todas las dimensiones de evaluació
 
 Entre las principales limitaciones se encuentran:
 
-- **Aproximación de infectados activos:** la expresión \(I=\text{Confirmados}-\text{Recuperados}-\text{Fallecidos}\) es una construcción contable a partir de registros históricos y no necesariamente refleja la cantidad real de personas infecciosas.
+- **Aproximación de infectados activos:** la expresión $I=\text{Confirmados}-\text{Recuperados}-\text{Fallecidos}$ es una construcción contable a partir de registros históricos y no necesariamente refleja la cantidad real de personas infecciosas.
+
 - **Dinámica autónoma:** el campo vectorial supone que un mismo estado SIR produce siempre las mismas derivadas. No incorpora explícitamente cambios temporales en políticas sanitarias, movilidad, vacunación o variantes.
+
 - **Calidad de los registros:** las revisiones administrativas y los cambios en los criterios de notificación pueden producir discontinuidades y ruido en las series.
+
 - **Suavizado:** la media móvil causal reduce parte de la variabilidad diaria, pero también puede atenuar o desplazar cambios bruscos.
+
 - **Horizonte de evaluación:** los resultados corresponden a una única partición cronológica de 91 días y no garantizan el mismo desempeño en otros períodos epidemiológicos.
+
 - **Incertidumbre:** el procedimiento genera pronósticos deterministas y no proporciona intervalos de predicción ni cuantifica explícitamente la incertidumbre.
 
 Además, el cumplimiento de la conservación poblacional es una restricción algebraica impuesta por construcción. No demuestra que el sistema aprendido represente todos los mecanismos epidemiológicos de un modelo SIR mecanístico.
@@ -413,9 +440,13 @@ En conclusión, los resultados respaldan el uso de KRR RBF como una alternativa 
 Como posibles extensiones se proponen:
 
 - Incorporar variables exógenas, como movilidad, vacunación e intervenciones sanitarias.
+
 - Evaluar campos vectoriales no autónomos que permitan representar cambios temporales en la dinámica.
+
 - Comparar diferentes métodos de suavizado y estimación de derivadas.
+
 - Evaluar múltiples ventanas cronológicas de entrenamiento y prueba.
+
 - Incorporar métodos para cuantificar la incertidumbre de los pronósticos.
 
 ---
