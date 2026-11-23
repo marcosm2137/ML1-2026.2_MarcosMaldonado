@@ -1,13 +1,8 @@
----
-layout: default
-title: Descubrimiento de Sistemas Dinámicos Continuos (Epidemiología SIR)
----
-
 <script type="text/x-mathjax-config">
 MathJax.Hub.Config({
   tex2jax: {
     inlineMath: [['\\(', '\\)']],
-    displayMath: [['\\[', '\\]']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']],
     processEscapes: true
   }
 });
